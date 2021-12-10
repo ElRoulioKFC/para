@@ -27,12 +27,13 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 
 
 #processus des trains
-def trainFils(pipeWrite,pipeRead):
+def trainFils(pipeWrite,pipeRead,idTrain):
     while(1):
         etat = ETAT_DEHORS
         action = pipeRead.recv()
             if action == "entrer" :
                 etat = ETAT_ATTENTE_ENTRER
+                
                 pipeWrite.send()
 
             elif action == "sortir" :
@@ -103,10 +104,10 @@ def envoi_messsage_sortir(numero_train):
     else :
         return -1
 
-def creation_train_processus():
+def creation_train_processus(idTrain):
     pipeRead, pipeWrite = Pipe()
     trainEnregistrementPipe.append([pipeRead, pipeWrite])
-    p = Process( target=trainFils, args=( [pipeWrite,pipeRead] ) )
+    p = Process( target=trainFils, args=( [pipeWrite,pipeRead,idTrain] ) )
     p.start()
 
 def creation_ordonanceur():
@@ -141,7 +142,7 @@ with SimpleXMLRPCServer(('localhost', 8000),
             return False
         else:
             trainEnregistrement.append(num)
-            creation_train_processus()
+            creation_train_processus(num)
             print("train ajouté avec succès")
             return True
     server.register_function(enregistrer_train, 'enregistrer')
