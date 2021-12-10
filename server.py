@@ -12,13 +12,13 @@ ETAT_VOIE_PRINCIPALE = "voiePrincipale"#état ou le train est sur la voie princi
 #fonction de changement d'état des trains
 
 trainEnregistrement = []#enregistrement des trains
-trainEnregistrementPipe = []#enregistrement des voies de communications avec les différents trains
+trainEnregistrementPipe = []#enregistrement des voies de communications avec les différents trains [writer,reader]
 voieGarePrincipale = [] #la ou les voies qui servent à sortir de gare
 voieGarage = [] #les différentes voies interne de la gare
 garage = 4 #4 places de garage
 trainAttenteRentrer = []#train en attente de rentrer
 trainAttenteSortir = []#train en attente de sortir
-
+ordonanceurPipe = []#pipe de l'ordonnanceur [writer,reader]
 
 
 # Restrict to a particular path.
@@ -29,15 +29,28 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 #processus des trains
 def trainFils(pipeWrite,pipeRead):
     while(1):
-        action = pipeRead.recv()
         etat = ETAT_DEHORS
-        if (action != "rien"):
+        action = pipeRead.recv()
             if action == "entrer" :
+                etat = ETAT_ATTENTE_ENTRER
                 pipeWrite.send()
 
             elif action == "sortir" :
+                etat = ETAT_ATTENTE_SORTIR
                 pipeWrite.send()
-            action = "rien"
+
+def ordonanceur(pipeWrite,pipeRead):
+    while(1):
+        idTrain = pipeRead.recv()
+        pipeReadTrain = get_pipeRead(idTrain)
+        action = pipeReadTrain.recv()
+        if action == "entrer":
+            return
+        elif action == "sortir":
+            return
+
+    return
+
 
 def voie_libre() :
     return len(voieGarePrincipale) == 0
@@ -95,6 +108,13 @@ def creation_train_processus():
     trainEnregistrementPipe.append([pipeRead, pipeWrite])
     p = Process( target=trainFils, args=( [pipeWrite,pipeRead] ) )
     p.start()
+
+def creation_ordonanceur():
+    if len(ordonanceurPipe) == 0:
+        pipeRead, pipeWrite = Pipe()
+        ordonanceurPipe.append([pipeRead, pipeWrite])
+        p = Process( target=ordonanceur, args=( [pipeWrite,pipeRead] ) )
+        p.start()
 # Create server
 with SimpleXMLRPCServer(('localhost', 8000),
                         requestHandler=RequestHandler) as server:
