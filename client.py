@@ -52,10 +52,12 @@ def exec_menu(choice):
 def entrer():
     print("entrer")
     s.entrer(id)
+    main_menu()
     return
 
 def sortir():
     print("sortir")
+    main_menu()
     return
 
 def exit():
