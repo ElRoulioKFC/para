@@ -30,6 +30,7 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
 def trainFils(pipeWrite,pipeRead):
     while(1):
         action = pipeRead.recv()
+        etat = ETAT_DEHORS
         if (action != "rien"):
             if action == "entrer" :
                 pipeWrite.send()
