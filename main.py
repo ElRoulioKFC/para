@@ -113,5 +113,4 @@ while True:
 
 
     drawDisplay()
-    print(time() - next_train_timer_start)
     sleep(0.25)
