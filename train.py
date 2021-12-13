@@ -191,8 +191,8 @@ def train_process(id, initial_track, initial_direction, conn):
 
     while active:
         if track["platform_name"] == "SIDINGS":
-            # On simule le temps de stationnement à quai (aléatoirement de 10 à 90s)
-            sleep(floor(uniform(5, 30)))
+            # On simule le temps de stationnement à quai (aléatoirement de 10 à 20s)
+            sleep(floor(uniform(5, 20)))
 
         train_process_move()
         sleep(0.01)

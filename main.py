@@ -1,12 +1,12 @@
 from train import *
 import curses
-from time import sleep
+from time import time, sleep
 
 
 waiting_tracks = Platform("WAITING_TRACKS")  # Voies d'attente en entrée de la plateforme
 
 main_tracks = Platform("MAIN_TRACKS")
-main_track = main_tracks.add_track(10)       # Voie unique d'entrée/sortie de la plateforme
+main_track = main_tracks.add_track(5)       # Voie unique d'entrée/sortie de la plateforme
 
 sidings = Platform("SIDINGS")                # Voies de garage
 sidings.add_track()
@@ -45,16 +45,13 @@ def drawDisplay():
     main_tracks.draw(stdscr, 0, 30)
     waiting_tracks.draw(stdscr, 0, 60)
 
-    # y = 0
-    # for train in trains:
-    #     train.draw(stdscr, y, 0)
-    #     y = y + 4
-
     stdscr.refresh()
 
 
 # Main loop
 trains_moving = []
+next_train_timer_start = time()
+
 
 def train_move(train):
     # print(str(train.id) + " a reçu une autorisation d'avancer.")
@@ -86,6 +83,7 @@ while True:
         if train.parent_conn.poll():
             train.process_data(train.parent_conn.recv(), clear_trains_moving)
 
+
     # Ordonnanceur
     trains_waiting_to_enter = []
     trains_waiting_to_exit = []
@@ -108,5 +106,12 @@ while True:
             train_move(trains_waiting_to_enter[0])
 
 
+    # Un nouveau train arrive toutes les vingt secondes
+    if time() - next_train_timer_start >= 10:
+        train_arrival()
+        next_train_timer_start = time()
+
+
     drawDisplay()
+    print(time() - next_train_timer_start)
     sleep(0.25)
