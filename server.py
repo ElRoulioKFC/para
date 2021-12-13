@@ -1,6 +1,8 @@
 from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.server import SimpleXMLRPCRequestHandler
 from multiprocessing import *
+import curses
+
 
 #etat du train
 ETAT_DEHORS = "dehors"#état ou le train est en dehors de la gare il ne fait rien
@@ -26,19 +28,61 @@ class RequestHandler(SimpleXMLRPCRequestHandler):
     rpc_paths = ('/RPC2',)
 
 
+stdscr = curses.initscr()
+
+# Affichage
+def initAffichage():
+    pass
+    # curses.noecho()
+    # curses.cbreak()
+    # stdscr.keypad(True)
+
+def desactiverAffichage():
+    pass
+    # stdscr.keypad(False)
+    # curses.nocbreak()
+    # curses.echo()
+
+    curses.endwin()
+
+
+BLOC_TRAINS_W = 20
+
+
+def afficherListeTrainsAttenteEntree():
+    x = BLOC_TRAINS_W + 10
+    y = 0
+
+    stdscr.addstr(y, x, "== En attente d'entrée ==")
+
+    for i in range(len(trainAttenteRentrer)):
+        y = y + 1
+        stdscr.addstr(y, x, str(trainAttenteRentrer[i]))
+
+
+def rafraichirAffichage():
+    stdscr.clear()
+
+    afficherListeTrainsAttenteEntree()
+    # stdscr.addstr(0, 0, "Coucou je suis un texte")
+
+    stdscr.refresh()
+
+
 #processus des trains
 def trainFils(pipeWrite,pipeRead,idTrain):
     while(1):
         etat = ETAT_DEHORS
         action = pipeRead.recv()
-            if action == "entrer" :
-                etat = ETAT_ATTENTE_ENTRER
-                
-                pipeWrite.send()
 
-            elif action == "sortir" :
-                etat = ETAT_ATTENTE_SORTIR
-                pipeWrite.send()
+        if action == "entrer" :
+            etat = ETAT_ATTENTE_ENTRER
+
+            pipeWrite.send()
+
+        elif action == "sortir" :
+            etat = ETAT_ATTENTE_SORTIR
+            pipeWrite.send()
 
 def ordonanceur(pipeWrite,pipeRead):
     while(1):
@@ -116,19 +160,12 @@ def creation_ordonanceur():
         ordonanceurPipe.append([pipeRead, pipeWrite])
         p = Process( target=ordonanceur, args=( [pipeWrite,pipeRead] ) )
         p.start()
+
+
 # Create server
 with SimpleXMLRPCServer(('localhost', 8000),
-                        requestHandler=RequestHandler) as server:
+                        requestHandler=RequestHandler, logRequests=False) as server:
     server.register_introspection_functions()
-
-    # Register pow() function; this will use the value of
-    # pow.__name__ as the name, which is just 'pow'.
-    server.register_function(pow)
-
-    # Register a function under a different name
-    def adder_function(x, y):
-        return x + y
-    server.register_function(adder_function, 'add')
 
     def chercheTrain(num):
         for i in range(len(trainEnregistrement)):
@@ -138,34 +175,34 @@ with SimpleXMLRPCServer(('localhost', 8000),
 
     def enregistrer_train(num):
         if chercheTrain(num) :
-            print("train présent dans la liste")
+            # print("train présent dans la liste")
             return False
         else:
             trainEnregistrement.append(num)
             creation_train_processus(num)
-            print("train ajouté avec succès")
+            # print("train ajouté avec succès")
             return True
+
     server.register_function(enregistrer_train, 'enregistrer')
 
     def entrer_en_gare(x):
-
-        print("le train " + x + "souhaite rentrer en gare" )
+        # print("le train " + x + "souhaite rentrer en gare" )
+        rafraichirAffichage()
         return 1
+
     server.register_function(entrer_en_gare, 'entrer')
 
     def sortir_en_gare(x):
-        print("le train " + x + "souhaite sortir de la gare" )
+        # print("le train " + x + "souhaite sortir de la gare" )
+        rafraichirAffichage()
         return 1
 
     server.register_function(sortir_en_gare, 'sortir')
 
-    # Register an instance; all the methods of the instance are
-    # published as XML-RPC methods (in this case, just 'mul').
-    class MyFuncs:
-        def mul(self, x, y):
-            return x * y
-
-    server.register_instance(MyFuncs())
+    # Rafraîchir l'affichage
+    initAffichage()
+    rafraichirAffichage()
 
     # Run the server's main loop
     server.serve_forever()
+    desactiverAffichage()
