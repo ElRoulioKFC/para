@@ -1,5 +1,6 @@
 from train import *
 from multiprocessing import Manager
+import curses
 from time import sleep
 
 
@@ -36,6 +37,23 @@ track = sidings.free_track()
 track.train = Train(track, DIRECTION_EXIT)
 
 
+stdscr = curses.initscr()
+
+def drawDisplay():
+    stdscr.clear()
+
+    sidings.draw(stdscr, 0, 0)
+    main_tracks.draw(stdscr, 0, 30)
+    waiting_tracks.draw(stdscr, 0, 60)
+
+    # y = 0
+    # for train in trains:
+    #     train.draw(stdscr, y, 0)
+    #     y = y + 4
+
+    stdscr.refresh()
+
+
 # Main loop
 manager = Manager()
 
@@ -58,7 +76,7 @@ while True:
                     destination_track = waiting_tracks.add_track()
 
             if main_track and destination_track:  # Si la voie est libre, on envoie le train !
-                print(str(train.id) + " a reçu une autorisation d'avancer.")
+                # print(str(train.id) + " a reçu une autorisation d'avancer.")
 
                 train.waiting = False
                 train.parent_conn.send([main_track.to_mp_data(), destination_track.to_mp_data()])
@@ -66,4 +84,5 @@ while True:
                 break  # Permet d'éviter certains conflits
 
 
+    drawDisplay()
     sleep(0.25)

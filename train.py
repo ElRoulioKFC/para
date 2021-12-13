@@ -7,6 +7,9 @@ from time import sleep
 last_track_id = -1
 tracks = []
 
+def TrackFromMPData(data):
+    return tracks[data["id"]]
+
 class Track:
     """Une voie sur laquelle un train peut se situer"""
 
@@ -30,8 +33,11 @@ class Track:
     def to_mp_data(self):
         return {"id": self.id, "platform_name": self.platform.name, "travel_time": self.travel_time}
 
-def TrackFromMPData(data):
-    return tracks[data["id"]]
+    def draw(self, stdscr, i, y, x):
+        if self.train:
+            self.train.draw(stdscr, y, x)
+
+        stdscr.addstr(y + 4, x, str(i) + "-------------------")
 
 
 class Platform():
@@ -56,10 +62,20 @@ class Platform():
     def free_track(self):
         """Retourne la première voie libre de la plateforme"""
         for track in self.tracks:
-            if not track.has_train():
+            if not track.train:
                 return track
 
         return None
+
+    def draw(self, stdscr, y, x):
+        stdscr.addstr(y, x, self.name)
+
+        i = 1
+        y = y + 1
+        for track in self.tracks:
+            track.draw(stdscr, i, y, x + 1)
+            i = i + 1
+            y = y + 4
 
 
 DIRECTION_ENTRY = 1  # Entrée dans la plateforme
@@ -92,10 +108,10 @@ class Train:
 
         # Le train a effectué une demande
         if ("demand" in data) and (data["demand"] == "MOVE"):
-            if   self.track.platform.name == "WAITING_TRACKS":
-                print(str(self.id) + " requiert un accès à la plateforme.")
-            elif self.track.platform.name == "SIDINGS":
-                print(str(self.id) + " requiert une sortie de la plateforme.")
+            # if   self.track.platform.name == "WAITING_TRACKS":
+            #     print(str(self.id) + " requiert un accès à la plateforme.")
+            # elif self.track.platform.name == "SIDINGS":
+            #     print(str(self.id) + " requiert une sortie de la plateforme.")
 
             self.waiting = True
 
@@ -107,7 +123,7 @@ class Train:
             if track.has_train():  # <== Pas normal !
                 raise Exception("Track already has a train on it (you just caused a deadly accident :( )!")
 
-            print(str(self.id) + " se déplace sur " + track.platform.name)
+            # print(str(self.id) + " se déplace sur " + track.platform.name)
 
             self.track.remove_train()
 
@@ -118,10 +134,15 @@ class Train:
 
         # Le train est arrivé à sa destination
         if ("arrived" in data) and data["arrived"]:
-            print(str(self.id) + " est arrivé à " + self.track.platform.name)
+            # print(str(self.id) + " est arrivé à " + self.track.platform.name)
 
             if self.track.platform.name == "WAITING_TRACKS":  # Le train est parti, arrêter son processus
                 self.destroy()
+
+    def draw(self, stdscr, y, x):
+        stdscr.addstr(y,     x, " ------------------")
+        stdscr.addstr(y + 1, x, "/ " + str(self.id) + "             \\")
+        stdscr.addstr(y + 2, x, "__@_@__________@_@__")
 
 
 def train_process(id, initial_track, initial_direction, conn):
