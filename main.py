@@ -1,5 +1,4 @@
 from train import *
-from multiprocessing import Manager
 import curses
 from time import sleep
 
@@ -55,33 +54,58 @@ def drawDisplay():
 
 
 # Main loop
-manager = Manager()
+trains_moving = []
+
+def train_move(train):
+    # print(str(train.id) + " a reçu une autorisation d'avancer.")
+    main_track = main_tracks.free_track()
+
+    # On choisit la voie de destination du mouvement
+    if   train.track.platform.name == "WAITING_TRACKS":
+        destination_track = sidings.free_track()
+
+    elif train.track.platform.name == "SIDINGS":
+        destination_track = waiting_tracks.free_track()
+        if (destination_track == None):
+            destination_track = waiting_tracks.add_track()
+
+    # Si une voie de destination est libre, on indique au train qu'il peut bouger (sinon il attend et il fait pas chier)
+    if destination_track != None:
+        trains_moving.append(train)
+        train.waiting = False
+        train.parent_conn.send([main_track.to_mp_data(), destination_track.to_mp_data()])
+
+def clear_trains_moving():
+    trains_moving.clear()
+
 
 while True:
+    # Réception des données des trains
     for train in trains:
         # Traitement des messages envoyés par les trains
         if train.parent_conn.poll():
-            train.process_data(train.parent_conn.recv())
+            train.process_data(train.parent_conn.recv(), clear_trains_moving)
 
-        # Si un train est attente, on regarde si toute les conditions sont réunies pour le faire partir
-        if train.waiting:
-            main_track = main_tracks.free_track()
+    # Ordonnanceur
+    trains_waiting_to_enter = []
+    trains_waiting_to_exit = []
 
-            if   train.track.platform.name == "WAITING_TRACKS":
-                destination_track = sidings.free_track()
+    # On classe les trains en fonction de leur destination
+    for train in trains:
+        if   train.waiting and train.track.platform.name == "WAITING_TRACKS":
+            trains_waiting_to_enter.append(train)
 
-            elif train.track.platform.name == "SIDINGS":
-                destination_track = waiting_tracks.free_track()
-                if (destination_track == None):
-                    destination_track = waiting_tracks.add_track()
+        elif train.waiting and train.track.platform.name == "SIDINGS":
+            trains_waiting_to_exit.append(train)
 
-            if main_track and destination_track:  # Si la voie est libre, on envoie le train !
-                # print(str(train.id) + " a reçu une autorisation d'avancer.")
+    # On traite les départs si aucun train n'est en train de se déplacer
+    if len(trains_moving) == 0:
+        # Les trains voulant sortir ont la priorité
+        if len(trains_waiting_to_exit) > 0:
+            train_move(trains_waiting_to_exit[0])
 
-                train.waiting = False
-                train.parent_conn.send([main_track.to_mp_data(), destination_track.to_mp_data()])
-
-                break  # Permet d'éviter certains conflits
+        elif len(trains_waiting_to_enter) > 0:
+            train_move(trains_waiting_to_enter[0])
 
 
     drawDisplay()

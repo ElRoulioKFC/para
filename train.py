@@ -54,7 +54,7 @@ class Platform():
         return track
 
     def remove_track(self, track):
-        if track.has_train():
+        if track.train != None:
             raise Exception("A train is still sitting on this track!")
 
         self.tracks.remove(track)
@@ -75,7 +75,7 @@ class Platform():
         for track in self.tracks:
             track.draw(stdscr, i, y, x + 1)
             i = i + 1
-            y = y + 4
+            y = y + 6
 
 
 DIRECTION_ENTRY = 1  # Entrée dans la plateforme
@@ -103,7 +103,7 @@ class Train:
         self.track.train = None
         trains.remove(self)
 
-    def process_data(self, data):
+    def process_data(self, data, clear_trains_moving):
         """Traite les données reçues par le processus du train"""
 
         # Le train a effectué une demande
@@ -135,13 +135,17 @@ class Train:
         # Le train est arrivé à sa destination
         if ("arrived" in data) and data["arrived"]:
             # print(str(self.id) + " est arrivé à " + self.track.platform.name)
+            clear_trains_moving()
 
             if self.track.platform.name == "WAITING_TRACKS":  # Le train est parti, arrêter son processus
                 self.destroy()
 
     def draw(self, stdscr, y, x):
+        direction = "<==" if self.direction == DIRECTION_ENTRY else "==>"
+        waiting = "X" if self.waiting else " "
+
         stdscr.addstr(y,     x, " ------------------")
-        stdscr.addstr(y + 1, x, "/ " + str(self.id) + "             \\")
+        stdscr.addstr(y + 1, x, "/ " + str(self.id) + "  " + waiting + "  " + direction + "     \\")
         stdscr.addstr(y + 2, x, "__@_@__________@_@__")
 
 
