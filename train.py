@@ -4,10 +4,19 @@ from multiprocessing import *
 from time import sleep
 
 
+last_track_id = -1
+tracks = []
+
 class Track:
     """Une voie sur laquelle un train peut se situer"""
 
     def __init__(self, platform, travel_time):
+        global last_track_id, tracks
+
+        last_track_id = last_track_id + 1
+        self.id = last_track_id
+        tracks.append(self)
+
         self.platform = platform        # Plateforme dans laquelle la voie se situe
         self.travel_time = travel_time  # Temps qu'un train met pour entrer ou sortir de cette voie
         self.train = None
@@ -17,6 +26,12 @@ class Track:
 
     def remove_train(self):
         self.train = None
+
+    def to_mp_data(self):
+        return {"id": self.id, "platform_name": self.platform.name, "travel_time": self.travel_time}
+
+def TrackFromMPData(data):
+    return tracks[data["id"]]
 
 
 class Platform():
@@ -59,6 +74,7 @@ class Train:
         self.id = floor(uniform(1000, 9000))
         self.track = initial_track            # Voie sur laquelle le train se situe
         self.direction = initial_direction    # Direction vers le train se dirige (entrée ou sortie de la plateforme)
+        self.waiting = False
 
         self.parent_conn, self.child_conn = Pipe()
 
@@ -86,15 +102,16 @@ class Train:
         # Le train s'est déplacé sur une nouvelle voie
         if "moved" in data:
             moved = data["moved"]
+            track = TrackFromMPData(moved["track"])
 
-            if moved["track"].has_train():  # <== Pas normal !
+            if track.has_train():  # <== Pas normal !
                 raise Exception("Track already has a train on it (you just caused a deadly accident :( )!")
 
-            print(str(self.id) + " se déplace sur " + self.track.platform.name)
+            print(str(self.id) + " se déplace sur " + track.platform.name)
 
             self.track.remove_train()
 
-            self.track = moved["track"]
+            self.track = track
             self.direction = moved["direction"]
 
             self.track.train = self
@@ -111,30 +128,31 @@ def train_process(id, initial_track, initial_direction, conn):
     """Processus fils de chaque train"""
 
     active = True
-    track = initial_track
+    track = initial_track.to_mp_data()
     direction = initial_direction
 
 
     def train_process_move():
         """Instructions de déplacement d'un processus fils de train"""
+        nonlocal track, direction
 
         # Indiquer à l'opérateur que l'on souhaite bouger
         conn.send({"demand": "MOVE"})
 
         # Attendre la réponse de l'opérateur
-        instructions = conn.recv()["instructions"]
+        instructions = conn.recv()
 
         # Choix de la direction du train
-        if   track.platform.name == "WAITING_TRACKS":
+        if   track["platform_name"] == "WAITING_TRACKS":
             direction = DIRECTION_ENTRY
-        elif track.platform.name == "SIDINGS":
+        elif track["platform_name"] == "SIDINGS":
             direction = DIRECTION_EXIT
 
         conn.send({"moved": {"track": track, "direction": direction}})
 
         # Exécution des instructions données par l'opérateur
         for to_track in instructions:
-            sleep(track.travel_time)
+            sleep(track["travel_time"])
 
             track = to_track
             conn.send({"moved": {"track": track, "direction": direction}})
@@ -142,12 +160,12 @@ def train_process(id, initial_track, initial_direction, conn):
         conn.send({"arrived": True})
 
         # Si arrivé en sortie de la plateforme, supprimer le train du système
-        if track.platform.name == "WAITING_TRACKS":
+        if track["platform_name"] == "WAITING_TRACKS":
             active = False
 
 
     while active:
-        if track.platform.name == "SIDINGS":
+        if track["platform_name"] == "SIDINGS":
             # On simule le temps de stationnement à quai (aléatoirement de 10 à 90s)
             sleep(floor(uniform(5, 30)))
 

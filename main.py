@@ -1,4 +1,5 @@
 from train import *
+from multiprocessing import Manager
 from time import sleep
 
 
@@ -36,6 +37,8 @@ track.train = Train(track, DIRECTION_EXIT)
 
 
 # Main loop
+manager = Manager()
+
 while True:
     for train in trains:
         # Traitement des messages envoyés par les trains
@@ -58,12 +61,9 @@ while True:
                 print(str(train.id) + " a reçu une autorisation d'avancer.")
 
                 train.waiting = False
-                # \/ buggué pour le moment, merci Python de merde
-                train.parent_conn.send({
-                    "instructions": [main_track, destination_track]
-                })
+                train.parent_conn.send([main_track.to_mp_data(), destination_track.to_mp_data()])
 
-                sleep(0.5)  # Permet d'éviter certains conflits
+                break  # Permet d'éviter certains conflits
 
 
-    sleep(0.01)
+    sleep(0.25)
